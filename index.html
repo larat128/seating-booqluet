@@ -3,189 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Don Bosco Theatre Seating - MVP</title>
+    <title>Don Bosco Theatre Seating</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .seat-available { @apply bg-green-500 hover:bg-green-600; }
-        .seat-selected { @apply bg-blue-500 ring-4 ring-blue-300; }
-        .seat-occupied { @apply bg-red-500 cursor-not-allowed opacity-60; }
-        .stage-curve { border-radius: 50% / 100% 100% 0 0; }
-    </style>
 </head>
-<body class="bg-slate-900 min-h-screen p-4 text-slate-100">
 
-    <div class="max-w-5xl mx-auto">
-        <header class="text-center mb-10">
-            <h1 class="text-4xl font-black text-white tracking-tight">DON BOSCO THEATRE</h1>
-            <p class="text-slate-400">Real-time Seating Arrangement</p>
-        </header>
+<body class="bg-slate-900 text-white p-6">
 
-        <div class="grid lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-2 bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700">
-                <div class="stage-curve w-full h-8 bg-slate-600 mb-16 relative flex justify-center">
-                    <span class="absolute -bottom-8 text-xs font-bold text-slate-500 uppercase">Stage</span>
-                </div>
+<h1 class="text-3xl font-bold text-center mb-6">Don Bosco Theatre</h1>
 
-                <div id="seat-grid" class="grid grid-cols-5 sm:grid-cols-8 gap-3 justify-items-center">
-                    </div>
+<div id="seat-grid" class="grid grid-cols-8 gap-2 max-w-md mx-auto"></div>
 
-                <div class="mt-10 flex flex-wrap justify-center gap-6 text-sm">
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-green-500 rounded-sm"></div> Available</div>
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-blue-500 rounded-sm"></div> Your Selection</div>
-                    <div class="flex items-center gap-2"><div class="w-4 h-4 bg-red-500 rounded-sm"></div> Occupied</div>
-                </div>
-            </div>
+<button onclick="saveBooking()" class="mt-6 bg-blue-600 px-4 py-2 rounded">
+    Confirm
+</button>
 
-            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col">
-                <h2 class="text-xl font-bold mb-6 border-b border-slate-700 pb-2">Your Booking</h2>
-                
-                <div id="selection-list" class="flex-grow space-y-3 overflow-y-auto max-h-[400px] pr-2">
-                    <p class="text-slate-500 italic">Select a seat to start...</p>
-                </div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-                <div class="mt-6 pt-6 border-t border-slate-700">
-                    <div class="flex justify-between items-end mb-4">
-                        <span class="text-slate-400">Total Price:</span>
-                        <span class="text-3xl font-mono font-bold text-green-400">$<span id="total-price">0</span></span>
-                    </div>
-                    <button id="btn-finish" disabled onclick="saveBooking()" class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg">
-                        Confirm & Reserve
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+const firebaseConfig = {
+    apiKey: "AIzaSyAYFZz6yojkPAWWFU2gWxrbsFvlwbyanb0",
+    authDomain: "don-bosco-seating-booqluet.firebaseapp.com",
+    projectId: "don-bosco-seating-booqluet",
+    storageBucket: "don-bosco-seating-booqluet.firebasestorage.app",
+    messagingSenderId: "1005727362551",
+    appId: "1:1005727362551:web:205c7b9f419255267cd2f2"
+};
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-        // 1. YOUR FIREBASE CONFIG (Paste yours here)
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT.appspot.com",
-            messagingSenderId: "YOUR_ID",
-            appId: "YOUR_APP_ID"
-        };
+let selectedSeats = [];
+let dbSeats = {};
 
-        // 2. Initialize
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+onSnapshot(collection(db, "seats"), (snapshot) => {
+    dbSeats = {};
+    snapshot.forEach(doc => {
+        dbSeats[doc.id] = doc.data();
+    });
+    renderGrid();
+});
 
-        // State Management
-        let dbSeats = {}; // From Firebase
-        let selectedSeats = []; // Local user choice: [{id, type}]
-        const PRICES = { adult: 15, minor: 10 };
+function renderGrid() {
+    const grid = document.getElementById("seat-grid");
+    grid.innerHTML = "";
 
-        // 3. Listen for Seat Updates (Real-time)
-        const q = query(collection(db, "seats"));
-        onSnapshot(q, (snapshot) => {
-            dbSeats = {};
-            snapshot.forEach((doc) => {
-                dbSeats[doc.id] = doc.data();
-            });
-            renderGrid();
+    for (let i = 1; i <= 40; i++) {
+        const id = "S" + i;
+        const occupied = dbSeats[id]?.status === "occupied";
+
+        const btn = document.createElement("button");
+        btn.innerText = id;
+        btn.className = occupied ? "bg-red-500 p-2" : "bg-green-500 p-2";
+        btn.disabled = occupied;
+
+        btn.onclick = () => toggleSeat(id);
+
+        grid.appendChild(btn);
+    }
+}
+
+window.toggleSeat = (id) => {
+    if (selectedSeats.includes(id)) {
+        selectedSeats = selectedSeats.filter(s => s !== id);
+    } else {
+        selectedSeats.push(id);
+    }
+};
+
+window.saveBooking = async () => {
+    for (const id of selectedSeats) {
+        await setDoc(doc(db, "seats", id), {
+            status: "occupied"
         });
+    }
+    alert("Saved!");
+};
+</script>
 
-        // 4. Render the Seating Chart
-        function renderGrid() {
-            const grid = document.getElementById('seat-grid');
-            grid.innerHTML = '';
-            
-            // Create 40 seats (Rows A-E)
-            const rows = ['A', 'B', 'C', 'D', 'E'];
-            rows.forEach(row => {
-                for (let i = 1; i <= 8; i++) {
-                    const id = `${row}${i}`;
-                    const isOccupied = dbSeats[id] && dbSeats[id].status === 'occupied';
-                    const isSelected = selectedSeats.some(s => s.id === id);
-                    
-                    const btn = document.createElement('button');
-                    btn.innerText = id;
-                    btn.className = `w-10 h-10 rounded text-[10px] font-bold transition-all 
-                        ${isOccupied ? 'seat-occupied' : isSelected ? 'seat-selected' : 'seat-available'}`;
-                    
-                    btn.disabled = isOccupied;
-                    btn.onclick = () => toggleSeat(id);
-                    grid.appendChild(btn);
-                }
-            });
-        }
-
-        // 5. Toggle Local Selection
-        window.toggleSeat = (id) => {
-            const index = selectedSeats.findIndex(s => s.id === id);
-            if (index > -1) {
-                selectedSeats.splice(index, 1);
-            } else {
-                selectedSeats.push({ id, type: 'adult' });
-            }
-            updateUI();
-        }
-
-        // Change price type
-        window.updateType = (id, type) => {
-            const seat = selectedSeats.find(s => s.id === id);
-            if (seat) seat.type = type;
-            updateUI();
-        }
-
-        function updateUI() {
-            const list = document.getElementById('selection-list');
-            const totalEl = document.getElementById('total-price');
-            const btn = document.getElementById('btn-finish');
-            
-            list.innerHTML = '';
-            let total = 0;
-
-            selectedSeats.forEach(seat => {
-                const price = PRICES[seat.type];
-                total += price;
-                list.innerHTML += `
-                    <div class="bg-slate-700 p-3 rounded-lg flex justify-between items-center border border-slate-600">
-                        <div>
-                            <span class="block font-bold">Seat ${seat.id}</span>
-                            <div class="text-xs space-x-2 mt-1">
-                                <button onclick="updateType('${seat.id}', 'adult')" class="${seat.type === 'adult' ? 'text-blue-400 font-bold' : 'text-slate-400'}">Adult</button>
-                                <button onclick="updateType('${seat.id}', 'minor')" class="${seat.type === 'minor' ? 'text-blue-400 font-bold' : 'text-slate-400'}">Minor</button>
-                            </div>
-                        </div>
-                        <span class="font-mono">$${price}</span>
-                    </div>`;
-            });
-
-            totalEl.innerText = total;
-            btn.disabled = selectedSeats.length === 0;
-            if (selectedSeats.length === 0) list.innerHTML = '<p class="text-slate-500 italic">Select a seat to start...</p>';
-            renderGrid();
-        }
-
-        // 6. Save to Firebase
-        window.saveBooking = async () => {
-            const btn = document.getElementById('btn-finish');
-            btn.innerText = "Saving...";
-            btn.disabled = true;
-
-            try {
-                for (const seat of selectedSeats) {
-                    await setDoc(doc(db, "seats", seat.id), {
-                        status: 'occupied',
-                        type: seat.type,
-                        timestamp: new Date()
-                    });
-                }
-                alert("Seats reserved successfully!");
-                selectedSeats = [];
-                updateUI();
-            } catch (e) {
-                console.error("Error adding document: ", e);
-                alert("Error saving booking.");
-            } finally {
-                btn.innerText = "Confirm & Reserve";
-            }
-        }
-    </script>
 </body>
 </html>
