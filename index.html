@@ -8,31 +8,42 @@
 </head>
 <body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-6">
 
-    <h1 class="text-3xl font-bold mb-6">🎭 Don Bosco Theatre Seating</h1>
+    <h1 class="text-3xl font-bold mb-2">🎭 Don Bosco Theatre</h1>
+    <p id="availability-status" class="mb-6 text-green-400 font-medium">Checking availability...</p>
 
     <div id="seat-grid" class="grid gap-2 mb-6"></div>
 
-    <div class="bg-slate-800 p-6 rounded-xl shadow-xl w-80 text-center border border-slate-700">
-        <p class="mb-2 text-slate-400">Selected Seat: <span id="selectedSeatLabel" class="text-white font-bold text-lg">None</span></p>
+    <div id="booking-panel" class="bg-slate-800 p-6 rounded-xl shadow-xl w-80 text-center border border-slate-700">
+        <div id="active-booking">
+            <p class="mb-2 text-slate-400">Selected Seat: <span id="selectedSeatLabel" class="text-white font-bold text-lg">None</span></p>
 
-        <select id="ticketType" class="bg-slate-700 text-white border border-slate-600 p-2 rounded w-full mb-4 outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Select Ticket Type</option>
-            <option value="adult">Adult ($10)</option>
-            <option value="minor">Minor ($5)</option>
-        </select>
+            <select id="ticketType" class="bg-slate-700 text-white border border-slate-600 p-2 rounded w-full mb-4 outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Select Ticket Type</option>
+                <option value="adult">Adult ($10)</option>
+                <option value="minor">Minor ($5)</option>
+            </select>
 
-        <p class="mb-4 text-xl font-semibold">Total: <span class="text-green-400">$</span><span id="priceDisplay" class="text-green-400">0</span></p>
+            <p class="mb-4 text-xl font-semibold">Total: <span class="text-green-400">$</span><span id="priceDisplay" class="text-green-400">0</span></p>
 
-        <button id="confirmBtn" class="bg-blue-600 hover:bg-blue-500 transition-colors text-white font-bold px-4 py-3 rounded-lg w-full shadow-lg">
-            Confirm Booking
-        </button>
+            <button id="confirmBtn" class="bg-blue-600 hover:bg-blue-500 transition-colors text-white font-bold px-4 py-3 rounded-lg w-full shadow-lg">
+                Confirm Booking
+            </button>
+        </div>
+
+        <div id="sold-out-message" class="hidden">
+            <h2 class="text-red-500 text-2xl font-bold mb-2">SOLD OUT</h2>
+            <p class="text-slate-300 text-sm">There is no more availability. Please wait for the next function.</p>
+        </div>
     </div>
+
+    <button id="resetBtn" class="mt-12 text-slate-600 text-xs hover:text-red-400 transition-colors">
+        Admin: Reset for Next Function
+    </button>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // --- FIREBASE CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyAYFZz6yojkPAWWFU2gWxrbsFvlwbyanb0",
             authDomain: "don-bosco-seating-booqluet.firebaseapp.com",
@@ -45,9 +56,10 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- APP STATE ---
+        // --- THEATRE CONFIG ---
         const rows = ["A", "B", "C", "D", "E"];
         const seatsPerRow = 8;
+        const totalSeatsCount = rows.length * seatsPerRow;
         const prices = { adult: 10, minor: 5 };
         
         let selectedSeat = null;
@@ -59,18 +71,39 @@
         const ticketTypeSelect = document.getElementById("ticketType");
         const priceDisplay = document.getElementById("priceDisplay");
         const confirmBtn = document.getElementById("confirmBtn");
+        const statusText = document.getElementById("availability-status");
+        const bookingUI = document.getElementById("active-booking");
+        const soldOutUI = document.getElementById("sold-out-message");
+        const resetBtn = document.getElementById("resetBtn");
 
-        // Setup Grid Columns
         grid.style.gridTemplateColumns = `repeat(${seatsPerRow}, 1fr)`;
 
-        // --- REAL-TIME DATA ---
+        // --- REAL-TIME LISTENERS ---
         onSnapshot(collection(db, "seats"), (snapshot) => {
             dbSeats = {};
             snapshot.forEach(doc => {
                 dbSeats[doc.id] = doc.data();
             });
+            
+            const occupiedCount = Object.keys(dbSeats).length;
+            updateAvailability(occupiedCount);
             renderGrid();
         });
+
+        function updateAvailability(count) {
+            if (count >= totalSeatsCount) {
+                statusText.innerText = "❌ No Availability Left";
+                statusText.classList.replace("text-green-400", "text-red-500");
+                bookingUI.classList.add("hidden");
+                soldOutUI.classList.remove("hidden");
+            } else {
+                const remaining = totalSeatsCount - count;
+                statusText.innerText = `✅ ${remaining} Seats Available`;
+                statusText.classList.replace("text-red-500", "text-green-400");
+                bookingUI.classList.remove("hidden");
+                soldOutUI.classList.add("hidden");
+            }
+        }
 
         function renderGrid() {
             grid.innerHTML = "";
@@ -83,10 +116,9 @@
                     const btn = document.createElement("button");
                     btn.innerText = id;
                     
-                    // Dynamic styling
                     let baseClass = "p-3 w-10 h-10 text-xs font-bold rounded transition-all ";
                     if (isOccupied) {
-                        btn.className = baseClass + "bg-red-600 cursor-not-allowed opacity-80";
+                        btn.className = baseClass + "bg-red-600 cursor-not-allowed opacity-50";
                         btn.disabled = true;
                     } else if (isSelected) {
                         btn.className = baseClass + "bg-blue-500 ring-2 ring-white scale-110";
@@ -106,50 +138,46 @@
             renderGrid();
         }
 
-        // --- UI LOGIC ---
         ticketTypeSelect.addEventListener("change", () => {
-            const price = prices[ticketTypeSelect.value] || 0;
-            priceDisplay.innerText = price;
+            priceDisplay.innerText = prices[ticketTypeSelect.value] || 0;
         });
 
+        // --- CONFIRM BOOKING ---
         confirmBtn.onclick = async () => {
-            const type = ticketTypeSelect.value;
-            
-            if (!selectedSeat) {
-                alert("Please select a seat first!");
-                return;
-            }
-            if (!type) {
-                alert("Please select a ticket type!");
+            if (!selectedSeat || !ticketTypeSelect.value) {
+                alert("Please select a seat and ticket type!");
                 return;
             }
 
             try {
                 confirmBtn.disabled = true;
-                confirmBtn.innerText = "Processing...";
-
-                // Save to Firestore
                 await setDoc(doc(db, "seats", selectedSeat), {
                     status: "occupied",
-                    type: type,
-                    price: prices[type],
-                    timestamp: new Date()
+                    type: ticketTypeSelect.value,
+                    price: prices[ticketTypeSelect.value]
                 });
-
-                alert(`Seat ${selectedSeat} booked successfully!`);
                 
-                // Reset Selection
                 selectedSeat = null;
                 seatLabel.innerText = "None";
                 ticketTypeSelect.value = "";
                 priceDisplay.innerText = "0";
-                
-            } catch (error) {
-                console.error("Error booking seat: ", error);
-                alert("Booking failed. Check console.");
+            } catch (e) {
+                alert("Error: " + e.message);
             } finally {
                 confirmBtn.disabled = false;
-                confirmBtn.innerText = "Confirm Booking";
+            }
+        };
+
+        // --- RESET FOR NEXT FUNCTION ---
+        resetBtn.onclick = async () => {
+            if (confirm("Clear all bookings and start the next function?")) {
+                const querySnapshot = await getDocs(collection(db, "seats"));
+                const batch = writeBatch(db);
+                querySnapshot.forEach((doc) => {
+                    batch.delete(doc.ref);
+                });
+                await batch.commit();
+                alert("Theatre reset! Everyone's page will update automatically.");
             }
         };
     </script>
