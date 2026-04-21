@@ -5,38 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Don Bosco Theatre Seating</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Optional: Soft rounded corners for everything */
+        .rounded-custom { border-radius: 1.5rem; }
+    </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-6">
+<body class="bg-pink-50 text-slate-700 min-h-screen flex flex-col items-center p-6 font-sans">
 
-    <h1 class="text-3xl font-bold mb-2">🎭 Don Bosco Theatre</h1>
-    <p id="availability-status" class="mb-6 text-green-400 font-medium">Checking availability...</p>
+    <h1 class="text-3xl font-bold mb-2 text-purple-400">🎭 Don Bosco Theatre</h1>
+    <p id="availability-status" class="mb-6 font-medium text-teal-500">Checking availability...</p>
 
     <div id="seat-grid" class="grid gap-2 mb-6"></div>
 
-    <div id="booking-panel" class="bg-slate-800 p-6 rounded-xl shadow-xl w-80 text-center border border-slate-700">
+    <div id="booking-panel" class="bg-white p-6 rounded-custom shadow-lg w-80 text-center border border-pink-100">
         <div id="active-booking">
-            <p class="mb-2 text-slate-400">Selected Seat: <span id="selectedSeatLabel" class="text-white font-bold text-lg">None</span></p>
+            <p class="mb-2 text-slate-500">Selected Seat: <span id="selectedSeatLabel" class="text-purple-400 font-bold text-lg">None</span></p>
 
-            <select id="ticketType" class="bg-slate-700 text-white border border-slate-600 p-2 rounded w-full mb-4 outline-none focus:ring-2 focus:ring-blue-500">
+            <select id="ticketType" class="bg-yellow-50 text-slate-600 border border-yellow-200 p-2 rounded-lg w-full mb-4 outline-none focus:ring-2 focus:ring-purple-300">
                 <option value="">Select Ticket Type</option>
                 <option value="adult">Adult ($10)</option>
                 <option value="minor">Minor ($5)</option>
             </select>
 
-            <p class="mb-4 text-xl font-semibold">Total: <span class="text-green-400">$</span><span id="priceDisplay" class="text-green-400">0</span></p>
+            <p class="mb-4 text-xl font-semibold">Total: <span class="text-teal-400">$</span><span id="priceDisplay" class="text-teal-400">0</span></p>
 
-            <button id="confirmBtn" class="bg-blue-600 hover:bg-blue-500 transition-colors text-white font-bold px-4 py-3 rounded-lg w-full shadow-lg">
+            <button id="confirmBtn" class="bg-teal-300 hover:bg-teal-400 transition-colors text-white font-bold px-4 py-3 rounded-xl w-full shadow-md">
                 Confirm Booking
             </button>
         </div>
 
         <div id="sold-out-message" class="hidden">
-            <h2 class="text-red-500 text-2xl font-bold mb-2">SOLD OUT</h2>
-            <p class="text-slate-300 text-sm">There is no more availability. Please wait for the next function.</p>
+            <h2 class="text-pink-400 text-2xl font-bold mb-2">SOLD OUT</h2>
+            <p class="text-slate-400 text-sm">There is no more availability. Please wait for the next function.</p>
         </div>
     </div>
 
-    <button id="resetBtn" class="mt-12 text-slate-600 text-xs hover:text-red-400 transition-colors">
+    <button id="resetBtn" class="mt-12 text-slate-400 text-xs hover:text-pink-400 transition-colors">
         Admin: Reset for Next Function
     </button>
 
@@ -93,13 +97,13 @@
         function updateAvailability(count) {
             if (count >= totalSeatsCount) {
                 statusText.innerText = "❌ No Availability Left";
-                statusText.classList.replace("text-green-400", "text-red-500");
+                statusText.classList.replace("text-teal-500", "text-pink-400");
                 bookingUI.classList.add("hidden");
                 soldOutUI.classList.remove("hidden");
             } else {
                 const remaining = totalSeatsCount - count;
                 statusText.innerText = `✅ ${remaining} Seats Available`;
-                statusText.classList.replace("text-red-500", "text-green-400");
+                statusText.classList.replace("text-pink-400", "text-teal-500");
                 bookingUI.classList.remove("hidden");
                 soldOutUI.classList.add("hidden");
             }
@@ -116,14 +120,14 @@
                     const btn = document.createElement("button");
                     btn.innerText = id;
                     
-                    let baseClass = "p-3 w-10 h-10 text-xs font-bold rounded transition-all ";
+                    let baseClass = "p-3 w-10 h-10 text-xs font-bold rounded-lg transition-all ";
                     if (isOccupied) {
-                        btn.className = baseClass + "bg-red-600 cursor-not-allowed opacity-50";
+                        btn.className = baseClass + "bg-pink-300 text-white cursor-not-allowed opacity-70";
                         btn.disabled = true;
                     } else if (isSelected) {
-                        btn.className = baseClass + "bg-blue-500 ring-2 ring-white scale-110";
+                        btn.className = baseClass + "bg-purple-400 text-white ring-2 ring-purple-200 scale-110";
                     } else {
-                        btn.className = baseClass + "bg-slate-600 hover:bg-slate-500";
+                        btn.className = baseClass + "bg-yellow-200 text-slate-600 hover:bg-yellow-300";
                     }
 
                     btn.onclick = () => selectSeat(id);
